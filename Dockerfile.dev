@@ -1,0 +1,55 @@
+ARG PYTHON_VERSION=3.11.4
+ARG ALPINE_VERSION=3.18
+
+
+FROM python:${PYTHON_VERSION}-alpine${ALPINE_VERSION}
+
+# supervisord setup          
+# add gcc fix 
+# add build-base linux-header fix: <linux/ethtool.h> and psutil
+USER root 
+
+RUN apk update && apk add --no-cache gcc build-base linux-headers && \
+  apk add postgresql && \
+  apk add postgresql-client && \
+  apk add postgresql-contrib
+
+RUN pip install --no-cache-dir psycopg2-binary
+
+# Airflow setup    
+ENV TZ=Asia/Ho_Chi_Minh                   
+ENV AIRFLOW_HOME=/usr/local/airflow
+ENV AIRFLOW__CORE_dags_folder=/usr/local/airflow/dags
+
+# Postgres setup
+ENV POSTGRES_HOST=postgres \
+  POSTGRES_PORT=5432 \
+  POSTGRES_USER=airflow \
+  POSTGRES_PASSWORD=airflow \
+  POSTGRES_DB=airflow \
+  POSTGRES_EXTRAS=""
+
+ENV AIRFLOW__CORE__SQL_ALCHEMY_CONN="postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}${POSTGRES_EXTRAS}"
+ENV AIRFLOW__CORE__EXECUTOR=LocalExecutor
+
+ENV AIRFLOW_VERSION=2.6.2
+
+RUN mkdir /run/postgresql
+RUN chown postgres:postgres /run/postgresql/
+# Run PostgreSQL and create the database
+
+# pip install ?
+RUN pip install apache-airflow==$AIRFLOW_VERSION \
+  --constraint https://raw.githubusercontent.com/apache/airflow/constraints-$AIRFLOW_VERSION/constraints-3.7.txt                     
+
+VOLUME ./dags/ $AIRFLOW_HOME/dags/
+
+WORKDIR ${AIRFLOW_HOME}
+
+COPY ./config/entrypoint.sh /entrypoint.sh
+
+# create backend database
+RUN airflow db init
+EXPOSE 8080 5432 8793
+ENTRYPOINT ["/bin/ash", "/entrypoint.sh"]
+CMD ["webserver"]
