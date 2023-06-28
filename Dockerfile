@@ -33,6 +33,7 @@ ENV BASE_URL=https://archive.apache.org/dist/spark/
 ENV SPARK_VERSION=3.4.0
 ENV HADOOP_VERSION=3
 
+WORKDIR /spark
 # COPY sh from base 
 COPY ./base/wait-for-step.sh /
 COPY ./base/execute-step.sh /
@@ -59,6 +60,11 @@ RUN chmod +x /wait-for-step.sh && chmod +x /execute-step.sh && chmod +x /finish-
 # Fix the value of PYTHONHASHSEED
 # Note: this is needed when you use Python 3.3 or greater
 ENV PYTHONHASHSEED 1
+
+# Set ENV for Pyspark
+ENV SPARK_HOME=/spark
+ENV PATH = $PATH:${SPARK_HOME}/bin
+ENV PYTHONPATH=$SPARK_HOME/python:$SPARK_HOME/python/lib/*.zip:$PYTHONPATH
 
 # Create master container from spark-base
 FROM spark-base as spark-master
